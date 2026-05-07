@@ -8,7 +8,8 @@ def load_daily_data():
     files = glob.glob("data/*_daily.csv")
     if not files:
         return []
-    df = pd.read_csv(files[0])
+    df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
+    df = df.groupby("date", as_index=False).agg(avg_score=("avg_score", "mean"), count=("count", "sum"))
     df = df.sort_values("date")
     return df.to_dict(orient="records")
 
@@ -16,8 +17,8 @@ def load_headlines(date):
     files = glob.glob("data/*_analyzed.csv")
     if not files:
         return []
-    df = pd.read_csv(files[0])
-    day_df = df[df["date"] == date][["title", "sentiment_score", "url"]].head(10)
+    df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
+    day_df = df[df["date"] == date][["title", "sentiment_score", "url"]].drop_duplicates("title").head(10)
     return day_df.to_dict(orient="records")
 
 @app.route("/")
