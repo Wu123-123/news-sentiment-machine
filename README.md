@@ -3,7 +3,6 @@
 > 用 FinBERT 分析财经新闻情绪，在交互式时间轴上可视化市场恐慌与乐观。
 
 ![Dashboard Preview](docs/screenshot.png)
-*(截图占位符 — 运行后替换为实际截图)*
 
 ---
 
@@ -22,8 +21,6 @@
 | 情绪曲线 | 当天标题面板 |
 |----------|-------------|
 | ![chart](docs/chart.png) | ![panel](docs/panel.png) |
-
-*(运行项目后截图替换)*
 
 ---
 
