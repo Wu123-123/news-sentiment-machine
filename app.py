@@ -18,7 +18,8 @@ def load_headlines(date):
     if not files:
         return []
     df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
-    day_df = df[df["date"] == date][["title", "sentiment_score", "url"]].drop_duplicates("title").head(10)
+    cols = [c for c in ["title", "sentiment_score", "sentiment_label", "url", "source"] if c in df.columns]
+    day_df = df[df["date"] == date][cols].drop_duplicates("title").sort_values("sentiment_score", key=abs, ascending=False).head(20)
     return day_df.to_dict(orient="records")
 
 @app.route("/")

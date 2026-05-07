@@ -2,90 +2,348 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>新闻情绪时间机器</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,sans-serif;background:#0f1117;color:#e0e0e0;min-height:100vh;padding:32px 24px}
-h1{font-size:24px;font-weight:600;margin-bottom:4px;color:#fff}
-.subtitle{font-size:13px;color:#666;margin-bottom:28px}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;max-width:480px}
-.stat{background:#1a1d27;border-radius:10px;padding:14px 16px}
-.stat-label{font-size:11px;color:#555;margin-bottom:4px}
-.stat-val{font-size:22px;font-weight:600}
-.pos{color:#22c55e}.neg{color:#ef4444}.neu{color:#94a3b8}
-.chart-box{background:#1a1d27;border-radius:12px;padding:20px;margin-bottom:20px}
-.chart-box h2{font-size:14px;color:#888;margin-bottom:16px;font-weight:400}
-.panel{background:#1a1d27;border-radius:12px;padding:20px}
-.panel h2{font-size:14px;color:#888;font-weight:400;margin-bottom:14px}
-.headline{padding:10px 0;border-bottom:1px solid #23263a;display:flex;align-items:flex-start;gap:10px}
-.headline:last-child{border-bottom:none}
-.dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
-.headline-text{font-size:13px;color:#ccc;line-height:1.5;flex:1}
-.headline-text a{color:inherit;text-decoration:none}
-.score{font-size:12px;margin-top:2px}
-#date-label{font-size:13px;color:#666;margin-bottom:10px}
-.empty{color:#444;font-size:13px;padding:20px 0}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+body{font-family:-apple-system,"PingFang SC","Helvetica Neue",sans-serif;background:#F0F4F9;min-height:100vh;color:#172B4D}
+
+/* ── Header ── */
+.header{background:linear-gradient(135deg,#003087 0%,#0052CC 60%,#0066FF 100%);padding:20px 20px 28px;position:relative;overflow:hidden}
+.header::after{content:'';position:absolute;top:-40px;right:-40px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.07);pointer-events:none}
+.header::before{content:'';position:absolute;bottom:-60px;left:-20px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.05);pointer-events:none}
+.header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.logo{display:flex;align-items:center;gap:8px}
+.logo-icon{width:32px;height:32px;background:rgba(255,255,255,.2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.logo-text{color:#fff;font-size:15px;font-weight:600;letter-spacing:.3px}
+.header-date{color:rgba(255,255,255,.7);font-size:12px}
+.header-title{color:#fff;font-size:22px;font-weight:700;margin-bottom:4px;letter-spacing:-.3px}
+.header-sub{color:rgba(255,255,255,.6);font-size:12px}
+
+/* ── Stat Cards ── */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 16px;margin-top:-14px;position:relative;z-index:10}
+.stat{background:#fff;border-radius:14px;padding:14px 12px;box-shadow:0 2px 12px rgba(0,0,0,.08);text-align:center}
+.stat-label{font-size:11px;color:#8993A4;margin-bottom:6px;font-weight:500}
+.stat-val{font-size:26px;font-weight:700;line-height:1}
+.stat-sub{font-size:10px;margin-top:4px;color:#8993A4}
+.pos{color:#00875A}.neg{color:#DE350B}.neu{color:#6B778C}
+
+/* ── Section ── */
+.section{margin:16px}
+.section-title{font-size:13px;font-weight:600;color:#5E6C84;margin-bottom:10px;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.5px}
+.section-title::before{content:'';display:block;width:3px;height:13px;border-radius:2px;background:#0052CC}
+
+/* ── Chart Card ── */
+.chart-card{background:#fff;border-radius:16px;padding:18px 16px 14px;box-shadow:0 2px 12px rgba(0,0,0,.07)}
+.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.chart-label{font-size:13px;font-weight:600;color:#172B4D}
+.chart-hint{font-size:11px;color:#A5ADBA}
+.legend{display:flex;gap:12px;margin-top:10px}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:11px;color:#5E6C84}
+.legend-dot{width:8px;height:8px;border-radius:50%}
+
+/* ── Sector Tabs ── */
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:2px 0;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1.5px solid #DFE1E6;background:#fff;color:#5E6C84;transition:all .2s}
+.tab.active{background:#0052CC;color:#fff;border-color:#0052CC}
+
+/* ── Date Bar ── */
+.date-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.date-tag{background:#EAF0FB;color:#0052CC;font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px}
+.news-count{font-size:11px;color:#A5ADBA}
+
+/* ── News Card ── */
+.news-card{background:#fff;border-radius:14px;margin-bottom:10px;box-shadow:0 1px 8px rgba(0,0,0,.06);overflow:hidden;display:flex}
+.news-stripe{width:4px;flex-shrink:0}
+.news-body{padding:14px 14px 12px;flex:1;min-width:0}
+.news-meta{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.sector-tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;letter-spacing:.3px}
+.source-tag{font-size:10px;color:#8993A4;background:#F4F5F7;padding:2px 8px;border-radius:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+.sentiment-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;margin-left:auto}
+.news-title{font-size:13px;line-height:1.55;color:#172B4D;margin-bottom:8px;word-break:break-word}
+.news-title mark.kw-pos{background:rgba(0,135,90,.12);color:#00875A;border-radius:3px;padding:0 2px;font-style:normal}
+.news-title mark.kw-neg{background:rgba(222,53,11,.1);color:#DE350B;border-radius:3px;padding:0 2px;font-style:normal}
+.reason-box{background:#F7F8FA;border-radius:8px;padding:7px 10px;display:flex;align-items:flex-start;gap:6px}
+.reason-icon{font-size:11px;flex-shrink:0;margin-top:1px}
+.reason-text{font-size:11px;color:#5E6C84;line-height:1.5}
+.reason-words{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.reason-word{font-size:10px;padding:2px 7px;border-radius:8px;font-weight:500}
+.score-row{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+.score-bar-wrap{flex:1;height:4px;background:#F4F5F7;border-radius:2px;margin-right:8px;overflow:hidden}
+.score-bar{height:4px;border-radius:2px;transition:width .4s}
+.score-num{font-size:11px;font-weight:600;width:50px;text-align:right}
+
+/* ── Empty ── */
+.empty-state{text-align:center;padding:40px 20px;color:#A5ADBA}
+.empty-state .icon{font-size:36px;margin-bottom:10px}
+.empty-state p{font-size:13px}
+
+/* ── Sector color map ── */
+.sector-Tech{background:#EAF3FF;color:#0052CC}
+.sector-Finance{background:#FFF3E0;color:#E65100}
+.sector-Macro{background:#F3E8FF;color:#7B1FA2}
+.sector-Energy{background:#E8F5E9;color:#2E7D32}
+.sector-Market{background:#FFF8E1;color:#F57F17}
+.sector-General{background:#F4F5F7;color:#5E6C84}
 </style>
 </head>
 <body>
-<h1>新闻情绪时间机器</h1>
-<p class="subtitle">财经新闻情绪分析 · 点击图表查看当天标题</p>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-top">
+    <div class="logo">
+      <div class="logo-icon">📊</div>
+      <div class="logo-text">情绪时间机器</div>
+    </div>
+    <div class="header-date" id="today-date"></div>
+  </div>
+  <div class="header-title">财经新闻情绪分析</div>
+  <div class="header-sub">Financial News Sentiment · Powered by FinBERT</div>
+</div>
+
+<!-- Stats -->
 <div class="stats">
-<div class="stat"><div class="stat-label">正面天数</div><div class="stat-val pos" id="s-pos">—</div></div>
-<div class="stat"><div class="stat-label">负面天数</div><div class="stat-val neg" id="s-neg">—</div></div>
-<div class="stat"><div class="stat-label">中性天数</div><div class="stat-val neu" id="s-neu">—</div></div>
+  <div class="stat">
+    <div class="stat-label">正面天数</div>
+    <div class="stat-val pos" id="s-pos">—</div>
+    <div class="stat-sub">Bullish days</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">负面天数</div>
+    <div class="stat-val neg" id="s-neg">—</div>
+    <div class="stat-sub">Bearish days</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">中性天数</div>
+    <div class="stat-val neu" id="s-neu">—</div>
+    <div class="stat-sub">Neutral days</div>
+  </div>
 </div>
-<div class="chart-box">
-<h2>情绪曲线 — 过去30天（红色=恐慌 绿色=乐观）</h2>
-<canvas id="chart" height="90"></canvas>
+
+<!-- Chart -->
+<div class="section" style="margin-top:20px">
+  <div class="section-title">情绪趋势</div>
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-label">过去30天市场情绪曲线</div>
+      <div class="chart-hint">点击柱形查看当日新闻</div>
+    </div>
+    <canvas id="chart" height="110"></canvas>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#00875A"></div>乐观</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#DE350B"></div>恐慌</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#B3BAC5"></div>中性</div>
+    </div>
+  </div>
 </div>
-<div class="panel">
-<h2>当天新闻标题</h2>
-<div id="date-label">点击图表上任意日期查看</div>
-<div id="headlines"><p class="empty">点击上方图表中的任意数据点</p></div>
+
+<!-- News Panel -->
+<div class="section">
+  <div class="section-title">新闻详情</div>
+
+  <!-- Sector Tabs -->
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-sector="All">全部</div>
+    <div class="tab" data-sector="Market">大盘</div>
+    <div class="tab" data-sector="Tech">科技</div>
+    <div class="tab" data-sector="Finance">金融</div>
+    <div class="tab" data-sector="Macro">宏观</div>
+    <div class="tab" data-sector="Energy">能源</div>
+    <div class="tab" data-sector="General">其他</div>
+  </div>
+
+  <!-- Date Bar -->
+  <div class="date-bar" style="margin-top:12px" id="date-bar" style="display:none">
+    <div class="date-tag" id="date-tag">— 点击图表选择日期 —</div>
+    <div class="news-count" id="news-count"></div>
+  </div>
+
+  <!-- News List -->
+  <div id="headlines">
+    <div class="empty-state">
+      <div class="icon">📈</div>
+      <p>点击上方图表中的柱形<br>查看当日财经新闻与情绪分析</p>
+    </div>
+  </div>
 </div>
+
+<div style="height:32px"></div>
+
 <script>
-let allData=[];
-async function loadChart(){
-  const res=await fetch("/api/data");
-  allData=await res.json();
-  const labels=allData.map(d=>d.date);
-  const scores=allData.map(d=>+parseFloat(d.avg_score).toFixed(3));
-  const colors=scores.map(s=>s>0.05?"rgba(34,197,94,0.85)":s<-0.05?"rgba(239,68,68,0.85)":"rgba(148,163,184,0.7)");
-  let pos=0,neg=0,neu=0;
-  scores.forEach(s=>{if(s>0.05)pos++;else if(s<-0.05)neg++;else neu++;});
-  document.getElementById("s-pos").textContent=pos;
-  document.getElementById("s-neg").textContent=neg;
-  document.getElementById("s-neu").textContent=neu;
-  const ctx=document.getElementById("chart").getContext("2d");
-  new Chart(ctx,{
-    type:"bar",
-    data:{labels,datasets:[{data:scores,backgroundColor:colors,borderRadius:4,borderSkipped:false}]},
-    options:{
-      responsive:true,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>"情绪分："+c.parsed.y.toFixed(3)}}},
-      scales:{
-        x:{ticks:{color:"#555",font:{size:11}},grid:{color:"#23263a"}},
-        y:{ticks:{color:"#555"},grid:{color:"#23263a"},suggestedMin:-0.6,suggestedMax:0.6}
+// ── Data ──────────────────────────────────────────────────
+let allData = [], allHeadlines = [], currentSector = 'All';
+
+// ── Sector detection ──────────────────────────────────────
+const SECTOR_RULES = [
+  ['Market',  /nasdaq|s&p|dow jones|index|etf|wall street|stock market|equity|shares|trading/i],
+  ['Tech',    /nvidia|apple|microsoft|google|alphabet|meta|amazon|tesla|intel|amd|qualcomm|openai|\bai\b|chip|semiconductor|software|tech|cyber|cloud|robot|data center/i],
+  ['Finance', /bank|jpmorgan|goldman|morgan stanley|citigroup|wells fargo|berkshire|finance|fintech|loan|credit|debt|ipo|merger|acquisition|hedge fund/i],
+  ['Macro',   /fed|federal reserve|powell|interest rate|inflation|cpi|ppi|\bgdp\b|recession|economy|economic|employment|jobs|labor|trade|tariff|policy|treasury|yield/i],
+  ['Energy',  /oil|gas|energy|crude|opec|brent|wti|exxon|chevron|shell|\bbp\b|renewable|solar|wind power/i],
+];
+function getSector(title) {
+  for (const [name, re] of SECTOR_RULES) if (re.test(title)) return name;
+  return 'General';
+}
+const SECTOR_ZH = {All:'全部',Market:'大盘',Tech:'科技',Finance:'金融',Macro:'宏观',Energy:'能源',General:'其他'};
+
+// ── Sentiment keywords ────────────────────────────────────
+const KW_POS = /\b(surge[sd]?|soar(?:ing|ed)?|rally(?:ing|ied)?|gain[sed]*|rise[sd]?|rising|jump[sed]*|beat[s]?|profit[s]?|growth|boom(?:ing)?|bullish|record[ -]high|outperform[sed]*|exceed[sed]*|recover(?:y|ed|ing)?|rebound[sed]*|advance[sd]?|climb[sed]*|upbeat|robust|solid|upgrade[sd]?|optimis[tm]|strong(?:er)?)\b/gi;
+const KW_NEG = /\b(drop[peds]*|fall(?:ing|en|s)?|slump[sed]*|crash(?:ed|ing|es)?|loss(?:es)?|decline[sd]?|miss(?:ed|es)?|cut[s]?|warn(?:ing|ed|s)?|risk[s]?|fear[s]?|sell[ -]?off|bearish|weak(?:er|ness)?|concern[sed]*|tumble[sd]?|plunge[sd]?|retreat[sed]*|slide|disappoint(?:ed|ing|ment)?|downgrade[sd]?|recession|crisis|volatile|uncertain(?:ty)?|pressure[sd]?|drag[s]?)\b/gi;
+
+function highlightTitle(text) {
+  return text
+    .replace(KW_POS, m => `<mark class="kw-pos">${m}</mark>`)
+    .replace(KW_NEG, m => `<mark class="kw-neg">${m}</mark>`);
+}
+
+function extractReasons(title, score) {
+  const posHits = [...title.matchAll(new RegExp(KW_POS.source, 'gi'))].map(m => m[0].toLowerCase());
+  const negHits = [...title.matchAll(new RegExp(KW_NEG.source, 'gi'))].map(m => m[0].toLowerCase());
+  const unique = arr => [...new Set(arr)];
+  if (score > 0.1)  return { label: '正面信号', icon: '📈', words: unique(posHits), color: '#00875A', bg: 'rgba(0,135,90,.1)' };
+  if (score < -0.1) return { label: '负面信号', icon: '📉', words: unique(negHits), color: '#DE350B', bg: 'rgba(222,53,11,.1)' };
+  const all = unique([...posHits, ...negHits]).slice(0, 3);
+  return { label: '情绪中性', icon: '➖', words: all, color: '#6B778C', bg: 'rgba(107,119,140,.1)' };
+}
+
+// ── Render news ───────────────────────────────────────────
+function renderNews(items) {
+  const filtered = currentSector === 'All' ? items : items.filter(d => getSector(d.title) === currentSector);
+  document.getElementById('news-count').textContent = `共 ${filtered.length} 条`;
+
+  if (!filtered.length) {
+    document.getElementById('headlines').innerHTML =
+      `<div class="empty-state"><div class="icon">🔍</div><p>该板块暂无数据</p></div>`;
+    return;
+  }
+
+  document.getElementById('headlines').innerHTML = filtered.map(item => {
+    const s = +item.sentiment_score;
+    const sector = getSector(item.title);
+    const stripeColor = s > 0.1 ? '#00875A' : s < -0.1 ? '#DE350B' : '#B3BAC5';
+    const badgeBg = s > 0.1 ? '#E3FCF0' : s < -0.1 ? '#FFEBE6' : '#F4F5F7';
+    const badgeColor = s > 0.1 ? '#00875A' : s < -0.1 ? '#DE350B' : '#6B778C';
+    const badgeLabel = s > 0.1 ? '正面' : s < -0.1 ? '负面' : '中性';
+    const reasons = extractReasons(item.title, s);
+    const absScore = Math.min(Math.abs(s), 1);
+    const barWidth = Math.round(absScore * 100);
+
+    const wordsHtml = reasons.words.length
+      ? reasons.words.map(w =>
+          `<span class="reason-word" style="background:${reasons.bg};color:${reasons.color}">${w}</span>`
+        ).join('')
+      : `<span style="font-size:10px;color:#A5ADBA">无明显情绪词</span>`;
+
+    const source = item.source || '未知来源';
+
+    return `
+<div class="news-card">
+  <div class="news-stripe" style="background:${stripeColor}"></div>
+  <div class="news-body">
+    <div class="news-meta">
+      <span class="sector-tag sector-${sector}">${SECTOR_ZH[sector] || sector}</span>
+      <span class="source-tag" title="${source}">${source}</span>
+      <span class="sentiment-badge" style="background:${badgeBg};color:${badgeColor}">${badgeLabel}</span>
+    </div>
+    <div class="news-title">
+      <a href="${item.url}" target="_blank" style="color:inherit;text-decoration:none">
+        ${highlightTitle(item.title)}
+      </a>
+    </div>
+    <div class="reason-box">
+      <div class="reason-icon">${reasons.icon}</div>
+      <div>
+        <div class="reason-text" style="color:${reasons.color};font-weight:600">${reasons.label}</div>
+        <div class="reason-words">${wordsHtml}</div>
+      </div>
+    </div>
+    <div class="score-row">
+      <div class="score-bar-wrap">
+        <div class="score-bar" style="width:${barWidth}%;background:${stripeColor}"></div>
+      </div>
+      <div class="score-num" style="color:${stripeColor}">${s >= 0 ? '+' : ''}${s.toFixed(3)}</div>
+    </div>
+  </div>
+</div>`;
+  }).join('');
+}
+
+// ── Load headlines ────────────────────────────────────────
+async function loadHeadlines(date) {
+  document.getElementById('date-tag').textContent = date;
+  document.getElementById('news-count').textContent = '加载中…';
+  const res = await fetch('/api/headlines?date=' + date);
+  allHeadlines = await res.json();
+  renderNews(allHeadlines);
+}
+
+// ── Sector tabs ───────────────────────────────────────────
+document.getElementById('tabs').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  currentSector = tab.dataset.sector;
+  if (allHeadlines.length) renderNews(allHeadlines);
+});
+
+// ── Load chart ────────────────────────────────────────────
+async function loadChart() {
+  const res = await fetch('/api/data');
+  allData = await res.json();
+  const labels  = allData.map(d => d.date);
+  const scores  = allData.map(d => +parseFloat(d.avg_score).toFixed(3));
+  const colors  = scores.map(s =>
+    s >  0.05 ? 'rgba(0,135,90,.85)' :
+    s < -0.05 ? 'rgba(222,53,11,.85)' :
+                'rgba(179,186,197,.8)'
+  );
+
+  let pos = 0, neg = 0, neu = 0;
+  scores.forEach(s => { if (s > 0.05) pos++; else if (s < -0.05) neg++; else neu++; });
+  document.getElementById('s-pos').textContent = pos;
+  document.getElementById('s-neg').textContent = neg;
+  document.getElementById('s-neu').textContent = neu;
+
+  const ctx = document.getElementById('chart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: scores, backgroundColor: colors, borderRadius: 5, borderSkipped: false }] },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#172B4D',
+          titleColor: '#fff',
+          bodyColor: 'rgba(255,255,255,.8)',
+          padding: 10,
+          cornerRadius: 8,
+          callbacks: {
+            title: c => c[0].label,
+            label: c => ' 情绪分：' + (c.parsed.y >= 0 ? '+' : '') + c.parsed.y.toFixed(3)
+          }
+        }
       },
-      onClick:(e,els)=>{if(els.length>0)loadHeadlines(allData[els[0].index].date);}
+      scales: {
+        x: { ticks: { color: '#8993A4', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,.04)' } },
+        y: { ticks: { color: '#8993A4', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,.04)' }, suggestedMin: -0.6, suggestedMax: 0.6 }
+      },
+      onClick: (e, els) => {
+        if (els.length > 0) loadHeadlines(allData[els[0].index].date);
+      }
     }
   });
 }
-async function loadHeadlines(date){
-  document.getElementById("date-label").textContent=date+" 的新闻";
-  const res=await fetch("/api/headlines?date="+date);
-  const items=await res.json();
-  const el=document.getElementById("headlines");
-  if(!items.length){el.innerHTML='<p class="empty">当天无数据</p>';return;}
-  el.innerHTML=items.map(item=>{
-    const s=+item.sentiment_score;
-    const color=s>0.1?"#22c55e":s<-0.1?"#ef4444":"#94a3b8";
-    const label=s>0.1?"正面":s<-0.1?"负面":"中性";
-    return '<div class="headline"><div class="dot" style="background:'+color+'"></div><div><div class="headline-text"><a href="'+item.url+'" target="_blank">'+item.title+'</a></div><div class="score" style="color:'+color+'">'+label+' '+s.toFixed(3)+'</div></div></div>';
-  }).join("");
-}
+
+// ── Init ──────────────────────────────────────────────────
+const d = new Date();
+document.getElementById('today-date').textContent =
+  d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0');
 loadChart();
 </script>
 </body>
