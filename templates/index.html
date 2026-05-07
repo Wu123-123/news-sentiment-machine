@@ -62,9 +62,10 @@ body{font-family:-apple-system,"PingFang SC","Helvetica Neue",sans-serif;backgro
 .sector-tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;letter-spacing:.3px}
 .source-tag{font-size:10px;color:#8993A4;background:#F4F5F7;padding:2px 8px;border-radius:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
 .sentiment-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;margin-left:auto}
-.news-title{font-size:13px;line-height:1.55;color:#172B4D;margin-bottom:8px;word-break:break-word}
-.news-title mark.kw-pos{background:rgba(0,135,90,.12);color:#00875A;border-radius:3px;padding:0 2px;font-style:normal}
-.news-title mark.kw-neg{background:rgba(222,53,11,.1);color:#DE350B;border-radius:3px;padding:0 2px;font-style:normal}
+.news-title{font-size:14px;font-weight:500;line-height:1.6;color:#172B4D;margin-bottom:4px;word-break:break-word}
+.news-title-en{font-size:11px;color:#A5ADBA;line-height:1.5;margin-bottom:8px;word-break:break-word}
+.news-title-en mark.kw-pos{background:rgba(0,135,90,.12);color:#00875A;border-radius:3px;padding:0 2px;font-style:normal}
+.news-title-en mark.kw-neg{background:rgba(222,53,11,.1);color:#DE350B;border-radius:3px;padding:0 2px;font-style:normal}
 .reason-box{background:#F7F8FA;border-radius:8px;padding:7px 10px;display:flex;align-items:flex-start;gap:6px}
 .reason-icon{font-size:11px;flex-shrink:0;margin-top:1px}
 .reason-text{font-size:11px;color:#5E6C84;line-height:1.5}
@@ -250,6 +251,11 @@ function renderNews(items) {
       <span class="sentiment-badge" style="background:${badgeBg};color:${badgeColor}">${badgeLabel}</span>
     </div>
     <div class="news-title">
+      <a href="${item.url}" target="_blank" style="color:inherit;text-decoration:none">
+        ${item.title_zh || item.title}
+      </a>
+    </div>
+    <div class="news-title-en">
       <a href="${item.url}" target="_blank" style="color:inherit;text-decoration:none">
         ${highlightTitle(item.title)}
       </a>
