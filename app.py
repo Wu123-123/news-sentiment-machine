@@ -4,6 +4,8 @@ import numpy as np
 import glob
 import json
 import os
+import threading
+from datetime import datetime, date, timedelta
 from deep_translator import GoogleTranslator
 
 app = Flask(__name__)
@@ -14,7 +16,6 @@ def _seed_history():
         return
     os.makedirs("data", exist_ok=True)
     rng = np.random.default_rng(42)
-    from datetime import date, timedelta
     today = date.today()
     rows = [
         {"date": (today - timedelta(days=i)).isoformat(),
@@ -68,14 +69,14 @@ def load_daily_data():
     df = df.sort_values("date")
     return df.to_dict(orient="records")
 
-def load_headlines(date):
+def load_headlines(date_str):
     files = glob.glob("data/*_analyzed.csv")
     if not files:
         return []
     df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
     cols = [c for c in ["title", "sentiment_score", "sentiment_label", "url", "source"] if c in df.columns]
     day_df = (
-        df[df["date"] == date][cols]
+        df[df["date"] == date_str][cols]
         .drop_duplicates("title")
         .sort_values("sentiment_score", key=abs, ascending=False)
         .head(20)
@@ -84,6 +85,47 @@ def load_headlines(date):
     for r in records:
         r["title_zh"] = translate(r.get("title", ""))
     return records
+
+# ── Refresh (background thread) ───────────────────────────────────────────────
+_refresh = {"running": False, "message": "", "error": None, "last_updated": None}
+
+def _do_refresh():
+    from src.fetch_news import _fetch_one_day
+    from src.analyze import analyze_file
+
+    today_str = date.today().isoformat()
+    keywords = ["stock market", "nasdaq"]
+    os.makedirs("data", exist_ok=True)
+
+    try:
+        # 1. Fetch today's articles for each keyword
+        for kw in keywords:
+            _refresh["message"] = f"正在抓取「{kw}」最新新闻…"
+            slug = kw.replace(" ", "_")
+            filename = f"data/news_{slug}_{today_str.replace('-', '')}.csv"
+            rows = _fetch_one_day(kw, today_str)
+            if rows:
+                pd.DataFrame(rows).to_csv(filename, index=False)
+
+        # 2. Analyze any raw file that doesn't yet have an analyzed version
+        _refresh["message"] = "正在运行 FinBERT 情绪分析…"
+        raw_files = [
+            f for f in glob.glob("data/news_*.csv")
+            if "_analyzed" not in f and "_daily" not in f
+        ]
+        for f in raw_files:
+            analyzed = f.replace(".csv", "_analyzed.csv")
+            if not os.path.exists(analyzed):
+                analyze_file(f)
+
+        _refresh["last_updated"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+        _refresh["message"] = "更新完成"
+        _refresh["error"] = None
+    except Exception as e:
+        _refresh["error"] = str(e)
+        _refresh["message"] = "更新失败"
+    finally:
+        _refresh["running"] = False
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 @app.route("/")
@@ -96,8 +138,27 @@ def api_data():
 
 @app.route("/api/headlines")
 def api_headlines():
-    date = request.args.get("date", "")
-    return jsonify(load_headlines(date))
+    date_str = request.args.get("date", "")
+    return jsonify(load_headlines(date_str))
+
+@app.route("/api/refresh", methods=["POST"])
+def api_refresh():
+    if _refresh["running"]:
+        return jsonify({"status": "running", "message": _refresh["message"]})
+    _refresh["running"] = True
+    _refresh["error"] = None
+    _refresh["message"] = "启动中…"
+    threading.Thread(target=_do_refresh, daemon=True).start()
+    return jsonify({"status": "started"})
+
+@app.route("/api/refresh/status")
+def api_refresh_status():
+    return jsonify({
+        "running": _refresh["running"],
+        "message": _refresh["message"],
+        "error": _refresh["error"],
+        "last_updated": _refresh["last_updated"],
+    })
 
 if __name__ == "__main__":
     app.run(debug=True, port=8080)

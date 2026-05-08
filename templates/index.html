@@ -88,6 +88,17 @@ body{font-family:-apple-system,"PingFang SC","Helvetica Neue",sans-serif;backgro
 .sector-Energy{background:#E8F5E9;color:#2E7D32}
 .sector-Market{background:#FFF8E1;color:#F57F17}
 .sector-General{background:#F4F5F7;color:#5E6C84}
+
+/* ── Refresh Button ── */
+.refresh-btn{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;cursor:pointer;transition:all .2s;backdrop-filter:blur(4px)}
+.refresh-btn:hover{background:rgba(255,255,255,.25)}
+.refresh-btn:disabled{opacity:.5;cursor:not-allowed}
+.refresh-btn .spin{display:inline-block;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.refresh-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#172B4D;color:#fff;font-size:12px;padding:10px 20px;border-radius:24px;box-shadow:0 4px 20px rgba(0,0,0,.2);display:none;z-index:100;white-space:nowrap;max-width:90vw;text-align:center}
+.refresh-toast.show{display:block}
+.refresh-toast.error{background:#DE350B}
+.refresh-toast.success{background:#00875A}
 </style>
 </head>
 <body>
@@ -99,11 +110,19 @@ body{font-family:-apple-system,"PingFang SC","Helvetica Neue",sans-serif;backgro
       <div class="logo-icon">📊</div>
       <div class="logo-text">情绪时间机器</div>
     </div>
-    <div class="header-date" id="today-date"></div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="header-date" id="today-date"></div>
+      <button class="refresh-btn" id="refresh-btn" onclick="startRefresh()">
+        <span id="refresh-icon">↻</span> 更新
+      </button>
+    </div>
   </div>
   <div class="header-title">财经新闻情绪分析</div>
-  <div class="header-sub">Financial News Sentiment · Powered by FinBERT</div>
+  <div class="header-sub" id="last-updated-label">Financial News Sentiment · Powered by FinBERT</div>
 </div>
+
+<!-- Toast -->
+<div class="refresh-toast" id="toast"></div>
 
 <!-- Stats -->
 <div class="stats">
@@ -316,7 +335,7 @@ async function loadChart() {
   document.getElementById('s-neu').textContent = neu;
 
   const ctx = document.getElementById('chart').getContext('2d');
-  new Chart(ctx, {
+  _chartInstance = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets: [{ data: scores, backgroundColor: colors, borderRadius: 5, borderSkipped: false }] },
     options: {
@@ -344,6 +363,57 @@ async function loadChart() {
       }
     }
   });
+}
+
+// ── Refresh ───────────────────────────────────────────────
+let _chartInstance = null;
+let _pollTimer = null;
+
+function showToast(msg, type='', duration=3000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'refresh-toast show' + (type ? ' ' + type : '');
+  clearTimeout(el._hide);
+  if (duration) el._hide = setTimeout(() => el.classList.remove('show'), duration);
+}
+
+function setRefreshBtn(loading) {
+  const btn = document.getElementById('refresh-btn');
+  const icon = document.getElementById('refresh-icon');
+  btn.disabled = loading;
+  icon.textContent = loading ? '↻' : '↻';
+  icon.className = loading ? 'spin' : '';
+  btn.querySelector('span + *') && (btn.lastChild.textContent = loading ? ' 更新中…' : ' 更新');
+}
+
+async function pollStatus() {
+  const res = await fetch('/api/refresh/status');
+  const s = await res.json();
+  if (s.running) {
+    showToast('⏳ ' + s.message, '', 0);
+    _pollTimer = setTimeout(pollStatus, 2000);
+  } else {
+    setRefreshBtn(false);
+    if (s.error) {
+      showToast('❌ ' + s.error, 'error');
+    } else {
+      showToast('✅ 更新完成' + (s.last_updated ? '  ' + s.last_updated : ''), 'success');
+      if (s.last_updated) {
+        document.getElementById('last-updated-label').textContent =
+          '最后更新：' + s.last_updated + ' · Powered by FinBERT';
+      }
+      // Reload chart with fresh data
+      if (_chartInstance) { _chartInstance.destroy(); _chartInstance = null; }
+      await loadChart();
+    }
+  }
+}
+
+async function startRefresh() {
+  setRefreshBtn(true);
+  showToast('⏳ 启动更新…', '', 0);
+  await fetch('/api/refresh', { method: 'POST' });
+  _pollTimer = setTimeout(pollStatus, 1500);
 }
 
 // ── Init ──────────────────────────────────────────────────
